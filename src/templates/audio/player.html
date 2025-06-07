@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Trình phát nhạc - Sectify{% endblock %}
+
+{% block additional_css %}
+<link rel="stylesheet" href="/static/css/music-player.css">
+<link rel="stylesheet" href="/static/css/player.css">
+{% endblock %}
+
+{% block content %}
+<div class="player-container">
+    <div class="player-artwork" id="player-artwork">
+        <i class="fa-solid fa-music"></i>
+    </div>
+    
+    <div class="player-info">
+        <h1 class="player-title" id="player-title">Chưa có bài hát nào</h1>
+        <div class="player-artist" id="player-artist">Chọn bài hát để phát</div>
+        <span class="player-status original" id="player-status">Gốc</span>
+    </div>
+    
+    <div class="player-controls">
+        <div class="control-buttons">
+            <button class="btn-player" id="btn-previous">
+                <i class="fa-solid fa-backward-step fa-2x"></i>
+            </button>
+            <button class="btn-player play-pause" id="btn-play-pause">
+                <i class="fa-solid fa-play" id="play-icon"></i>
+            </button>
+            <button class="btn-player" id="btn-next">
+                <i class="fa-solid fa-forward-step fa-2x"></i>
+            </button>
+        </div>
+        
+        <div class="time-progress">
+            <span class="time-current" id="time-current">00:00</span>
+            <div class="progress-container">
+                <div class="progress-bar" id="progress-bar">
+                    <div class="progress-current" id="progress-current">
+                        <div class="progress-handle"></div>
+                    </div>
+                </div>
+            </div>
+            <span class="time-total" id="time-total">00:00</span>
+        </div>
+        
+        <div class="volume-container">
+            <div class="volume-icon" id="volume-icon">
+                <i class="fa-solid fa-volume-high"></i>
+            </div>
+            <div class="volume-slider" id="volume-slider">
+                <div class="volume-level" id="volume-level"></div>
+            </div>
+        </div>
+        
+        <div class="player-visualization" id="visualization">
+            {% for i in range(20) %}
+            <div class="visualization-bar" style="height: {{ 10 + (i % 30) }}px;"></div>
+            {% endfor %}
+        </div>
+        
+        <div class="player-actions mt-4">
+            <button class="btn btn-outline-light" id="btn-library">
+                <i class="fa-solid fa-music me-2"></i>Thư viện nhạc
+            </button>
+            
+            <button class="btn btn-outline-primary" id="btn-encrypt-decrypt">
+                <i class="fa-solid fa-lock me-2"></i>Mã hóa/Giải mã
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block additional_js %}
+<script src="/static/js/music-player.js"></script>
+<script src="/static/js/player-page.js"></script>
+{% endblock %} 

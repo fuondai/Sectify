@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}Playlist - Sectify{% endblock %}
+
+{% block additional_css %}
+<link rel="stylesheet" href="/static/css/music-player.css">
+<style>
+    .playlist-cover {
+        width: 180px;
+        height: 180px;
+        border-radius: 8px;
+        background-color: var(--dark-color-lightest);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 64px;
+        color: var(--text-color-secondary);
+        margin-right: 24px;
+    }
+    
+    .playlist-info {
+        flex: 1;
+    }
+    
+    .playlist-meta {
+        margin-top: 8px;
+        color: var(--text-color-secondary);
+    }
+    
+    .playlist-actions {
+        margin-top: 24px;
+        display: flex;
+        gap: 16px;
+        align-items: center;
+    }
+    
+    .playlist-actions .btn {
+        border-radius: 50px;
+        padding: 8px 24px;
+    }
+    
+    .playlist-card {
+        border-radius: 8px;
+        overflow: hidden;
+        background-color: var(--dark-color-lighter);
+        transition: all 0.3s ease;
+        position: relative;
+        height: 100%;
+    }
+    
+    .playlist-card:hover {
+        background-color: var(--dark-color-lightest);
+        transform: translateY(-5px);
+    }
+    
+    .playlist-card-img {
+        height: 160px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-color-secondary);
+        font-size: 40px;
+        background: linear-gradient(45deg, var(--dark-color), var(--dark-color-lighter));
+        position: relative;
+    }
+    
+    .playlist-card-img .play-overlay {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .playlist-card:hover .play-overlay {
+        opacity: 1;
+    }
+    
+    .playlist-card .play-btn {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background-color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+        border: none;
+        transform: translateY(10px);
+        opacity: 0;
+        transition: all 0.3s ease;
+    }
+    
+    .playlist-card:hover .play-btn {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    
+    .new-playlist-card {
+        border: 2px dashed rgba(255, 255, 255, 0.2);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: transparent;
+        cursor: pointer;
+    }
+    
+    .new-playlist-card:hover {
+        border-color: var(--primary-color);
+        background-color: rgba(29, 185, 84, 0.1);
+    }
+    
+    .create-playlist-modal .modal-content {
+        background-color: var(--dark-color-lighter);
+        color: var(--text-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <h1>Playlist của bạn</h1>
+        <div class="page-header-actions">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPlaylistModal">
+                <i class="fa-solid fa-plus me-2"></i>Tạo playlist mới
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <h3 class="section-title">Danh sách playlist</h3>
+    </div>
+    
+    <div class="row" id="playlist-container">
+        <!-- Playlist sẽ được load bằng JavaScript -->
+        <div class="col-md-3 col-sm-6 mb-4">
+            <div class="playlist-card new-playlist-card h-100" data-bs-toggle="modal" data-bs-target="#createPlaylistModal">
+                <i class="fa-solid fa-plus fa-2x mb-3"></i>
+                <h5>Tạo playlist mới</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chi tiết playlist sẽ hiển thị ở đây khi người dùng chọn một playlist -->
+<div id="playlist-detail" class="d-none mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex">
+                <div class="playlist-cover">
+                    <i class="fa-solid fa-music"></i>
+                </div>
+                <div class="playlist-info">
+                    <div>
+                        <small class="text-uppercase text-muted">Playlist</small>
+                        <h2 id="playlist-title">Tên playlist</h2>
+                    </div>
+                    <div class="playlist-meta">
+                        <span id="playlist-owner">Tạo bởi: Bạn</span> • 
+                        <span id="playlist-track-count">0 bài hát</span> • 
+                        <span id="playlist-duration">00:00</span>
+                    </div>
+                    <div class="playlist-actions">
+                        <button id="play-playlist" class="btn btn-primary">
+                            <i class="fa-solid fa-play me-2"></i>Phát
+                        </button>
+                        <button id="edit-playlist" class="btn btn-outline-light">
+                            <i class="fa-solid fa-edit me-2"></i>Chỉnh sửa
+                        </button>
+                        <button id="delete-playlist" class="btn btn-outline-danger">
+                            <i class="fa-solid fa-trash me-2"></i>Xóa
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="playlist-container">
+                <div class="track-list-container">
+                    <table class="table table-borderless">
+                        <thead>
+                            <tr>
+                                <th width="60">#</th>
+                                <th>Bài hát</th>
+                                <th>Trạng thái</th>
+                                <th>Thời gian</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="playlist-tracks">
+                            <!-- Danh sách bài hát trong playlist sẽ được hiển thị ở đây -->
+                            <tr class="text-center">
+                                <td colspan="5">
+                                    <div class="py-5">
+                                        <div class="spinner-border text-primary mb-3" role="status">
+                                            <span class="visually-hidden">Đang tải...</span>
+                                        </div>
+                                        <p>Đang tải danh sách bài hát...</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal tạo playlist mới -->
+<div class="modal fade create-playlist-modal" id="createPlaylistModal" tabindex="-1" aria-labelledby="createPlaylistModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createPlaylistModalLabel">Tạo playlist mới</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="create-playlist-form">
+                    <div class="mb-3">
+                        <label for="playlist-name" class="form-label">Tên playlist</label>
+                        <input type="text" class="form-control" id="playlist-name" placeholder="Nhập tên playlist" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="playlist-description" class="form-label">Mô tả (tùy chọn)</label>
+                        <textarea class="form-control" id="playlist-description" rows="3" placeholder="Nhập mô tả cho playlist"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="save-playlist">Tạo playlist</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal thêm bài hát vào playlist -->
+<div class="modal fade" id="addTracksModal" tabindex="-1" aria-labelledby="addTracksModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTracksModalLabel">Thêm bài hát vào playlist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="track-search" placeholder="Tìm kiếm bài hát">
+                </div>
+                <div class="track-list-container">
+                    <table class="table table-borderless">
+                        <thead>
+                            <tr>
+                                <th width="40"></th>
+                                <th>Bài hát</th>
+                                <th>Trạng thái</th>
+                                <th>Thời gian</th>
+                            </tr>
+                        </thead>
+                        <tbody id="available-tracks">
+                            <!-- Danh sách bài hát có sẵn sẽ được hiển thị ở đây -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="add-selected-tracks">Thêm bài hát đã chọn</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block additional_js %}
+<script src="/static/js/music-player.js"></script>
+<script src="/static/js/playlist.js"></script>
+{% endblock %} 

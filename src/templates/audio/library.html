@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Thư viện nhạc - Sectify{% endblock %}
+
+{% block additional_css %}
+<link rel="stylesheet" href="/static/css/music-player.css">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <h1>Thư viện nhạc của bạn</h1>
+        <div class="page-header-actions">
+            <a href="/audio/upload" class="btn btn-primary">
+                <i class="fa-solid fa-upload me-2"></i>Tải lên nhạc mới
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="playlist-container">
+            <div class="playlist-header">
+                <div class="playlist-title">
+                    <i class="fa-solid fa-music me-2"></i>Tất cả bài hát
+                </div>
+                <div class="playlist-actions">
+                    <button class="btn btn-sm btn-outline-light" id="sort-toggle">
+                        <i class="fa-solid fa-sort me-1"></i>Sắp xếp
+                    </button>
+                    <button class="btn btn-sm btn-outline-light" id="play-all">
+                        <i class="fa-solid fa-play me-1"></i>Phát tất cả
+                    </button>
+                </div>
+            </div>
+
+            <div class="audio-filter">
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-0">
+                        <i class="fa-solid fa-search text-light"></i>
+                    </span>
+                    <input type="text" class="form-control bg-dark border-0 text-light" id="filter-input" placeholder="Tìm kiếm bài hát...">
+                    <select id="filter-type" class="form-select bg-dark border-0 text-light">
+                        <option value="all">Tất cả</option>
+                        <option value="original">Gốc</option>
+                        <option value="encrypted">Đã mã hóa</option>
+                        <option value="decrypted">Đã giải mã</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="track-list-container">
+                <table class="table table-borderless">
+                    <thead>
+                        <tr>
+                            <th width="60">#</th>
+                            <th>Tên bài hát</th>
+                            <th>Trạng thái</th>
+                            <th>Thời gian</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="audio-list">
+                        <!-- Dữ liệu sẽ được load bằng JavaScript -->
+                        <tr class="text-center">
+                            <td colspan="5">
+                                <div class="py-5">
+                                    <div class="spinner-border text-primary mb-3" role="status">
+                                        <span class="visually-hidden">Đang tải...</span>
+                                    </div>
+                                    <p>Đang tải danh sách nhạc...</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="encryption-panel mb-4">
+            <div class="encryption-header">
+                <h5 class="encryption-title">
+                    <i class="fa-solid fa-shield-halved me-2"></i>Mã hóa/Giải mã
+                </h5>
+            </div>
+            <div class="encryption-body">
+                <div id="no-file-selected" class="text-center py-4">
+                    <i class="fa-solid fa-music fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">Hãy chọn một bài hát để mã hóa hoặc giải mã</p>
+                </div>
+                
+                <div id="encryption-options" class="d-none">
+                    <h6 id="selected-file-name" class="mb-3 text-truncate">filename.wav</h6>
+                    
+                    <div id="encrypt-section">
+                        <div class="encryption-method">
+                            <p class="mb-2">Chọn phương thức mã hóa:</p>
+                            
+                            <div class="method-option active">
+                                <input class="method-radio" type="radio" name="algorithm" id="aes-gcm" value="aes" checked>
+                                <div class="method-info">
+                                    <div class="method-name">AES-GCM</div>
+                                    <div class="method-description">Tiêu chuẩn mã hóa mạnh với xác thực và bảo mật cao</div>
+                                </div>
+                            </div>
+                            
+                            <div class="method-option">
+                                <input class="method-radio" type="radio" name="algorithm" id="chaotic" value="chaotic">
+                                <div class="method-info">
+                                    <div class="method-name">Chaotic Stream Cipher</div>
+                                    <div class="method-description">Mã hóa dòng dựa trên sơ đồ hỗn loạn Logistic Map</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="encryption-actions">
+                            <button id="encrypt-button" class="btn btn-primary encryption-btn">
+                                <i class="fa-solid fa-lock me-1"></i>Mã hóa bài hát
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="decrypt-section" class="d-none">
+                        <div class="alert alert-info" role="alert">
+                            <i class="fa-solid fa-info-circle me-2"></i>
+                            Bài hát này đã được mã hóa và có thể được giải mã.
+                        </div>
+                        
+                        <div class="encryption-actions">
+                            <button id="decrypt-button" class="btn btn-success encryption-btn">
+                                <i class="fa-solid fa-unlock me-1"></i>Giải mã bài hát
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-3">
+                    
+                    <div class="encryption-actions">
+                        <button id="download-button" class="btn btn-outline-light encryption-btn">
+                            <i class="fa-solid fa-download me-1"></i>Tải xuống
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card bg-gradient-dark">
+            <div class="card-body">
+                <h5 class="card-title mb-3">
+                    <i class="fa-solid fa-lock me-2"></i>Bảo mật của bạn
+                </h5>
+                <p class="text-muted mb-4">Sectify bảo vệ âm nhạc của bạn với các thuật toán mã hóa tiên tiến, đảm bảo chỉ bạn mới có thể truy cập.</p>
+                
+                <div class="security-stats">
+                    <div class="security-stat-item">
+                        <div class="stat-label">Độ mạnh mã hóa</div>
+                        <div class="stat-value">
+                            <div class="progress bg-dark" style="height: 6px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: 95%"></div>
+                            </div>
+                            <div class="stat-text mt-1">AES-256 (Rất mạnh)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="security-stat-item mt-3">
+                        <div class="stat-label">Kiểm tra toàn vẹn</div>
+                        <div class="stat-value">
+                            <div class="progress bg-dark" style="height: 6px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+                            </div>
+                            <div class="stat-text mt-1">SHA-256 (Toàn vẹn hoàn toàn)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block additional_js %}
+<script src="/static/js/music-player.js"></script>
+<script src="/static/js/audio-library.js"></script>
+{% endblock %} 

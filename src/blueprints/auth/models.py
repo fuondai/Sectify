@@ -226,7 +226,6 @@ class User:
             print(f"Đăng nhập thất bại: Lỗi không mong muốn cho {email}: {e}")
             return {"error": "Lỗi không mong muốn trong quá trình đăng nhập"}, 500
 
-    # Thêm tham số testing để bỏ qua gửi mail khi chạy test
     def send_2fa_code(self, email, testing=False):
         """Tạo mã OTP 6 số, lưu vào session và gửi qua email.
         Bỏ qua việc gửi email thực tế nếu `testing` là True hoặc config MAIL_SUPPRESS_SEND=True.
@@ -237,9 +236,9 @@ class User:
         # Lưu timestamp (UTC) để kiểm tra hết hạn
         session["2fa_otp_timestamp"] = datetime.now(timezone.utc)
 
-        # Bỏ qua gửi email thực tế khi đang chạy test hoặc có config yêu cầu
-        if testing or current_app.config.get("MAIL_SUPPRESS_SEND"):
-            print(f"TESTING/MAIL_SUPPRESS_SEND=True: Bỏ qua gửi email thực tế cho {email}. OTP: {otp}")
+        # Bỏ qua gửi email thực tế khi đang chạy test, development, hoặc có config yêu cầu
+        if testing or current_app.config.get("MAIL_SUPPRESS_SEND") or current_app.config.get("DEBUG", False):
+            print(f"DEBUG/TESTING/MAIL_SUPPRESS_SEND=True: Bỏ qua gửi email thực tế cho {email}. OTP: {otp}")
             return True # Giả lập gửi thành công
 
         # Lấy thông tin cấu hình email từ biến môi trường
@@ -293,44 +292,76 @@ class User:
         # Kiểm tra xem các thông tin cần thiết có tồn tại không
         if not temp_user_id or not stored_otp or not otp_timestamp_aware or not submitted_otp:
             print("Xác thực 2FA thất bại: Thiếu dữ liệu tạm thời hoặc OTP trong session/request.")
-            return {"error": "Phiên xác thực đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại."}, 400
+            return {
+                "error": "Thông tin xác thực không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại."
+            }
 
-        # Kiểm tra OTP hết hạn (5 phút)
-        otp_expiry_duration = timedelta(minutes=5)
-        # So sánh thời gian UTC hiện tại với thời gian tạo OTP + thời gian hết hạn
-        if datetime.now(timezone.utc) > otp_timestamp_aware + otp_expiry_duration:
-            print(f"Xác thực 2FA thất bại cho user_id {temp_user_id}: OTP đã hết hạn.")
-            # Xóa thông tin 2FA tạm thời khỏi session
+        # Chuyển timestamp từ str thành datetime nếu cần
+        if isinstance(otp_timestamp_aware, str):
+            otp_timestamp_aware = datetime.strptime(
+                otp_timestamp_aware, "%Y-%m-%d %H:%M:%S.%f%z"
+            )
+
+        # Kiểm tra thời gian hết hạn
+        # OTP chỉ có hiệu lực trong 10 phút (600 giây)
+        now = datetime.now(timezone.utc)
+        time_diff = now - otp_timestamp_aware
+        if time_diff.total_seconds() > 600:
+            # Xóa thông tin tạm thời nếu hết hạn
             session.pop("temp_user_id_for_2fa", None)
             session.pop("2fa_otp", None)
             session.pop("2fa_otp_timestamp", None)
-            return {"error": "Mã OTP đã hết hạn. Vui lòng đăng nhập lại."}, 400
+            print(f"Xác thực 2FA thất bại: OTP đã hết hạn ({time_diff.total_seconds()} giây).")
+            return {
+                "error": "Mã OTP đã hết hạn. Vui lòng đăng nhập lại."
+            }
 
-        # So sánh OTP người dùng nhập với OTP đã lưu
-        if stored_otp == submitted_otp:
-            print(f"Xác thực 2FA thành công cho user_id {temp_user_id}")
-            # Lấy thông tin người dùng đầy đủ từ DB
-            user = db.users.find_one({"_id": temp_user_id})
-            if not user:
-                 # Trường hợp hiếm gặp: user bị xóa sau khi gửi OTP?
-                 print(f"Xác thực 2FA thất bại: Không tìm thấy người dùng {temp_user_id} trong DB sau khi kiểm tra OTP.")
-                 return {"error": "Không tìm thấy người dùng"}, 404
+        # Kiểm tra OTP có trùng khớp không
+        if submitted_otp != stored_otp:
+            print(f"Xác thực 2FA thất bại: OTP không khớp (nhập: {submitted_otp}, lưu: {stored_otp}).")
+            return {
+                "error": "Mã OTP không chính xác."
+            }
+
+        # OTP hợp lệ, xác thực thành công!
+        # Tạo phiên đăng nhập cho người dùng
+        cursor = db.cursor()
+        try:
+            # Lấy thông tin người dùng
+            cursor.execute(
+                "SELECT id, name, email, role FROM users WHERE id = ?",
+                (temp_user_id,)
+            )
+            user = cursor.fetchone()
             
-            # Bắt đầu session chính thức cho người dùng
-            user_info_dict, status_code = self.start_session(user)
-            # Kiểm tra xem start_session có trả về lỗi không
-            if status_code != 200:
-                return user_info_dict, status_code # Trả về lỗi từ start_session
-            # Trả về thông tin người dùng và mã thành công từ start_session
-            return user_info_dict, status_code
-        else:
-            # Sai OTP
-            print(f"Xác thực 2FA thất bại cho user_id {temp_user_id}: Sai OTP.")
-            # Xóa các thông tin đăng nhập tiềm năng khỏi session khi OTP sai
-            session.pop("logged_in", None)
-            session.pop("user_id", None)
-            session.pop("token", None)
-            # Giữ lại thông tin 2FA tạm thời để có thể thử lại (hoặc ghi log)
-            # Trả về lỗi sai OTP (thông báo tiếng Việt theo yêu cầu test)
-            return {"error": "Mã xác thực hai yếu tố không hợp lệ"}, 401
+            if not user:
+                # Không tìm thấy người dùng (hiếm khi xảy ra)
+                return {
+                    "error": "Không tìm thấy thông tin người dùng."
+                }
+                
+            # Đặt thông tin người dùng vào session
+            session["user_id"] = user["id"]
+            session["name"] = user["name"]
+            session["email"] = user["email"]
+            session["role"] = user["role"]
+            session["logged_in"] = True
+            
+            # Xóa thông tin tạm thời
+            session.pop("temp_user_id_for_2fa", None)
+            session.pop("2fa_otp", None)
+            session.pop("2fa_otp_timestamp", None)
+            
+            # Thêm trường success vào kết quả
+            return {
+                "success": True,
+                "message": "Xác thực thành công. Đang chuyển hướng..."
+            }
+        except Exception as e:
+            print(f"Lỗi khi xác thực 2FA: {e}")
+            return {
+                "error": "Lỗi xác thực: " + str(e)
+            }
+        finally:
+            cursor.close()
 

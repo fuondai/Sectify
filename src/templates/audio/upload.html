@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Tải lên nhạc - Sectify{% endblock %}
+
+{% block additional_css %}
+<style>
+    .dropzone {
+        border: 2px dashed rgba(255, 255, 255, 0.3);
+        border-radius: 12px;
+        padding: 60px 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+        background-color: var(--dark-color-lighter);
+        cursor: pointer;
+    }
+
+    .dropzone:hover {
+        border-color: var(--primary-color);
+        background-color: rgba(29, 185, 84, 0.1);
+    }
+
+    .dropzone.dragover {
+        border-color: var(--primary-color);
+        background-color: rgba(29, 185, 84, 0.15);
+    }
+
+    .upload-icon {
+        font-size: 64px;
+        color: var(--text-color-secondary);
+        margin-bottom: 20px;
+    }
+
+    .upload-progress {
+        height: 8px;
+        border-radius: 4px;
+        margin-top: 30px;
+        margin-bottom: 10px;
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .upload-file-list {
+        list-style: none;
+        padding: 0;
+    }
+
+    .upload-file-item {
+        background-color: var(--dark-color-lightest);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+    }
+
+    .file-icon {
+        font-size: 24px;
+        margin-right: 16px;
+        color: var(--primary-color);
+    }
+
+    .file-info {
+        flex: 1;
+    }
+
+    .file-name {
+        font-weight: 500;
+        margin-bottom: 4px;
+        color: var(--white);
+    }
+
+    .file-meta {
+        font-size: 12px;
+        color: var(--text-color-secondary);
+    }
+
+    .file-status {
+        margin-left: 16px;
+    }
+
+    .status-complete {
+        color: var(--primary-color);
+    }
+
+    .status-error {
+        color: #E8433E;
+    }
+
+    .status-progress {
+        color: #1DA2B8;
+    }
+
+    .recent-uploads {
+        margin-top: 24px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <h1>Tải lên bài hát mới</h1>
+        <div class="page-header-actions">
+            <a href="/audio/library" class="btn btn-outline-light">
+                <i class="fa-solid fa-arrow-left me-2"></i>Quay lại thư viện
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h4 class="card-title mb-4">Chọn file nhạc để tải lên</h4>
+                
+                <div id="upload-area" class="dropzone">
+                    <div id="upload-placeholder">
+                        <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                        <h5 class="mb-3">Kéo thả file hoặc click để chọn</h5>
+                        <p class="text-muted">Hỗ trợ file WAV, MP3, FLAC, OGG (Tối đa 20MB)</p>
+                        <button class="btn btn-outline-light mt-3">Chọn file</button>
+                    </div>
+                    
+                    <div id="upload-progress-container" class="d-none">
+                        <i class="fa-solid fa-spinner fa-spin upload-icon"></i>
+                        <h5 class="mb-3">Đang tải lên...</h5>
+                        <div class="upload-progress">
+                            <div id="upload-progress-bar" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <p id="upload-status" class="text-muted">0% hoàn thành</p>
+                    </div>
+                    
+                    <div id="upload-complete" class="d-none">
+                        <i class="fa-solid fa-check-circle upload-icon text-success"></i>
+                        <h5 class="mb-3">Tải lên thành công!</h5>
+                        <p class="text-muted">File của bạn đã được tải lên thành công.</p>
+                        <button id="upload-another" class="btn btn-outline-light mt-3">Tải lên file khác</button>
+                    </div>
+                </div>
+                
+                <form id="upload-form" class="d-none">
+                    <input type="file" id="file-input" accept=".wav,.mp3,.flac,.ogg" multiple>
+                </form>
+            </div>
+        </div>
+        
+        <div id="upload-queue-container" class="card d-none">
+            <div class="card-body">
+                <h4 class="card-title mb-4">
+                    <i class="fa-solid fa-list me-2"></i>Hàng đợi tải lên
+                </h4>
+                
+                <ul id="upload-file-list" class="upload-file-list">
+                    <!-- Các file tải lên sẽ được hiển thị ở đây -->
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-5">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h4 class="card-title mb-4">
+                    <i class="fa-solid fa-info-circle me-2"></i>Thông tin hữu ích
+                </h4>
+                
+                <div class="mb-4">
+                    <h5>Định dạng hỗ trợ</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="fa-solid fa-music me-2 text-primary"></i>WAV (Không nén, chất lượng cao nhất)
+                        </li>
+                        <li class="mb-2">
+                            <i class="fa-solid fa-music me-2 text-primary"></i>MP3 (Phổ biến, nén có mất mát)
+                        </li>
+                        <li class="mb-2">
+                            <i class="fa-solid fa-music me-2 text-primary"></i>FLAC (Nén không mất mát, chất lượng cao)
+                        </li>
+                        <li class="mb-2">
+                            <i class="fa-solid fa-music me-2 text-primary"></i>OGG (Mã nguồn mở, nén có mất mát)
+                        </li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h5>Giới hạn và bảo mật</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="fa-solid fa-check me-2 text-success"></i>Kích thước tối đa: 20MB mỗi file
+                        </li>
+                        <li class="mb-2">
+                            <i class="fa-solid fa-check me-2 text-success"></i>Tất cả file đều được lưu trữ an toàn
+                        </li>
+                        <li class="mb-2">
+                            <i class="fa-solid fa-check me-2 text-success"></i>Bạn có thể mã hóa file bất kỳ lúc nào
+                        </li>
+                        <li class="mb-2">
+                            <i class="fa-solid fa-check me-2 text-success"></i>Chỉ bạn mới có thể truy cập file của mình
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card recent-uploads">
+            <div class="card-body">
+                <h4 class="card-title mb-4">
+                    <i class="fa-solid fa-clock-rotate-left me-2"></i>Tải lên gần đây
+                </h4>
+                
+                <div id="recent-uploads-list">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Đang tải...</span>
+                        </div>
+                        <p class="mt-2">Đang tải dữ liệu...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block additional_js %}
+<script src="/static/js/upload.js"></script>
+{% endblock %} 

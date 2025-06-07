@@ -6,17 +6,32 @@ from .models import User # Import lớp User từ models.py cùng cấp
 # Sử dụng decorator của blueprint (@auth.route) thay vì @app.route
 # để đăng ký các route này với blueprint 'auth'
 
-@auth.route("/signup", methods=["POST"])
+@auth.route("/login", methods=["GET", "POST"])
+def login():
+    """Endpoint xử lý yêu cầu đăng nhập.
+    GET: Hiển thị form đăng nhập.
+    POST: Xử lý yêu cầu đăng nhập, bắt đầu quá trình 2FA.
+    """
+    if request.method == "GET":
+        return render_template("auth/login.html")
+    
+    # Xử lý POST request
+    user = User() # Tạo instance của lớp User để gọi phương thức xử lý
+    result, status_code = user.login(request.form)
+    return jsonify(result), status_code
+
+@auth.route("/signup", methods=["GET", "POST"])
 def signup():
     """Endpoint xử lý yêu cầu đăng ký người dùng mới.
-    Chỉ chấp nhận phương thức POST.
-    Lấy dữ liệu từ form, gọi phương thức signup của lớp User.
-    Trả về kết quả dạng JSON.
+    GET: Hiển thị form đăng ký.
+    POST: Xử lý yêu cầu đăng ký.
     """
+    if request.method == "GET":
+        return render_template("auth/signup.html")
+    
+    # Xử lý POST request
     user = User() # Tạo instance của lớp User để gọi phương thức xử lý
-    # Gọi phương thức signup từ model, truyền dữ liệu form (request.form)
     result, status_code = user.signup(request.form)
-    # Trả về kết quả (thành công hoặc lỗi) và mã trạng thái HTTP dưới dạng JSON
     return jsonify(result), status_code
 
 @auth.route("/logout") # Mặc định là GET
@@ -27,39 +42,35 @@ def signout():
     """
     user = User()
     result, status_code = user.signout()
-    # Thông thường, đăng xuất có thể redirect về trang đăng nhập hoặc trang chủ.
-    # Ở đây, trả về JSON theo logic của model.
-    return jsonify(result), status_code
-
-@auth.route("/login", methods=["POST"])
-def login():
-    """Endpoint xử lý yêu cầu đăng nhập.
-    Chỉ chấp nhận phương thức POST.
-    Lấy dữ liệu từ form, gọi phương thức login của lớp User (bắt đầu quá trình 2FA).
-    Trả về kết quả dạng JSON (yêu cầu 2FA hoặc lỗi).
-    """
-    user = User()
-    result, status_code = user.login(request.form)
-    return jsonify(result), status_code
+    # Chuyển hướng về trang chủ sau khi đăng xuất
+    return redirect("/")
 
 @auth.route("/verify-2fa", methods=["POST"])
 def verify_2fa():
-    """Endpoint xử lý xác thực mã OTP 2FA.
-    Chỉ chấp nhận phương thức POST.
-    Lấy mã OTP từ form, gọi phương thức verify_2fa của lớp User.
-    Trả về kết quả dạng JSON (thông tin user nếu thành công, hoặc lỗi).
+    """Xác thực mã OTP.
+    
+    Returns:
+        - Thông báo lỗi nếu OTP không hợp lệ hoặc hết hạn
+        - Thông tin người dùng nếu xác thực thành công
     """
-    user = User()
-    # Chỉ xử lý POST request chứa mã OTP
-    if request.method == "POST":
-        otp = request.form.get("otp") # Lấy mã OTP từ form
+    try:
+        otp = request.form.get("otp")
         if not otp:
-            return jsonify({"error": "Missing OTP code in form data"}), 400
-        result, status_code = user.verify_2fa(otp)
-        return jsonify(result), status_code
-    # else: # Không xử lý GET request cho API này
-    #     # Nếu là ứng dụng web truyền thống, có thể trả về template:
-    #     # return render_template("verify_2fa.html")
-    #     # Đối với API, trả về lỗi Method Not Allowed nếu không phải POST
-    #     return jsonify({"error": "Method Not Allowed. Use POST to submit OTP."}), 405
+            return jsonify({"error": "Thiếu mã OTP"}), 400
+        
+        # Gọi hàm xác thực OTP từ model
+        auth_model = AuthModel(get_db())
+        result = auth_model.verify_2fa(otp)
+        
+        # Kiểm tra kết quả
+        if "error" in result:
+            return jsonify(result), 400
+        elif "success" in result and result["success"] == True:
+            return jsonify(result), 200
+        else:
+            # Trường hợp không xác định
+            return jsonify({"error": "Lỗi không xác định khi xác thực OTP"}), 500
+    except Exception as e:
+        print(f"Lỗi khi xác thực OTP: {e}")
+        return jsonify({"error": f"Lỗi xác thực: {str(e)}"}), 500
 

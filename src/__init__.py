@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
-from flask import Flask
+from flask import Flask, render_template
 from pymongo import MongoClient
 from config import config # Import cấu hình từ config.py
 import sys
@@ -163,7 +163,7 @@ def create_app(config_name="default", config_override=None):
         
     @app.route("/")
     def index():
-        return "Chào mừng đến với ứng dụng Mã hóa Âm thanh An toàn"
+        return render_template("index.html")
 
     print(f"Flask app created with config: {config_name}")
     return app

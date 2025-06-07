@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}Trang chủ - Sectify{% endblock %}
+
+{% block content %}
+{% if session.get('logged_in') %}
+<div class="home-greeting">
+    <div class="greeting-text">
+        <h2>Xin chào, {{ session.get('username', 'người dùng') }}</h2>
+        <p>Thưởng thức âm nhạc với sự riêng tư và bảo mật tuyệt đối</p>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <h3 class="section-title">Phát gần đây</h3>
+        <a href="/audio/library" class="section-link">Xem tất cả</a>
+    </div>
+    
+    <div class="row" id="recent-played">
+        <div class="col-12 text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Đang tải...</span>
+            </div>
+            <p class="mt-2">Đang tải danh sách bài hát gần đây...</p>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <h3 class="section-title">Thư viện của bạn</h3>
+        <a href="/audio/library" class="section-link">Quản lý thư viện</a>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-3 col-sm-6 mb-4">
+            <div class="card category-card">
+                <div class="card-body text-center">
+                    <div class="category-icon mb-3">
+                        <i class="fa-solid fa-music"></i>
+                    </div>
+                    <h5 class="card-title">Tất cả bài hát</h5>
+                    <p class="card-text text-muted" id="total-songs">Đang tải...</p>
+                    <a href="/audio/library" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-4">
+            <div class="card category-card">
+                <div class="card-body text-center">
+                    <div class="category-icon mb-3">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <h5 class="card-title">Đã mã hóa</h5>
+                    <p class="card-text text-muted" id="encrypted-songs">Đang tải...</p>
+                    <a href="/audio/library?type=encrypted" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-4">
+            <div class="card category-card">
+                <div class="card-body text-center">
+                    <div class="category-icon mb-3">
+                        <i class="fa-solid fa-unlock"></i>
+                    </div>
+                    <h5 class="card-title">Đã giải mã</h5>
+                    <p class="card-text text-muted" id="decrypted-songs">Đang tải...</p>
+                    <a href="/audio/library?type=decrypted" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-4">
+            <div class="card category-card">
+                <div class="card-body text-center">
+                    <div class="category-icon mb-3 upload-icon">
+                        <i class="fa-solid fa-upload"></i>
+                    </div>
+                    <h5 class="card-title">Tải lên</h5>
+                    <p class="card-text text-muted">Thêm nhạc mới</p>
+                    <a href="/audio/upload" class="stretched-link"></a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <h3 class="section-title">Công nghệ mã hóa</h3>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card encryption-info-card">
+                <div class="card-body">
+                    <div class="encryption-info-header">
+                        <div class="encryption-icon">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div class="encryption-title">
+                            <h4>AES-GCM</h4>
+                            <p class="text-muted">Tiêu chuẩn mã hóa công nghiệp</p>
+                        </div>
+                    </div>
+                    <div class="encryption-details mt-3">
+                        <p>AES-GCM (Advanced Encryption Standard - Galois/Counter Mode) là một thuật toán mã hóa chuẩn được sử dụng rộng rãi, kết hợp sự bảo mật của AES với tính hiệu quả và xác thực của GCM.</p>
+                        <div class="encryption-features">
+                            <div class="feature-item">
+                                <i class="fa-solid fa-check-circle text-success"></i>
+                                <span>Mã hóa 256-bit</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fa-solid fa-check-circle text-success"></i>
+                                <span>Xác thực toàn vẹn dữ liệu</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fa-solid fa-check-circle text-success"></i>
+                                <span>Chống tấn công thay đổi dữ liệu</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card encryption-info-card">
+                <div class="card-body">
+                    <div class="encryption-info-header">
+                        <div class="encryption-icon">
+                            <i class="fa-solid fa-random"></i>
+                        </div>
+                        <div class="encryption-title">
+                            <h4>Chaotic Stream Cipher</h4>
+                            <p class="text-muted">Mã hóa dựa trên lý thuyết hỗn loạn</p>
+                        </div>
+                    </div>
+                    <div class="encryption-details mt-3">
+                        <p>Chaotic Stream Cipher sử dụng sơ đồ hỗn loạn Logistic Map để tạo ra các dãy số giả ngẫu nhiên không thể đoán trước, mang lại tính bảo mật cao cho dữ liệu âm thanh.</p>
+                        <div class="encryption-features">
+                            <div class="feature-item">
+                                <i class="fa-solid fa-check-circle text-success"></i>
+                                <span>Tính chất hỗn loạn không thể đoán trước</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fa-solid fa-check-circle text-success"></i>
+                                <span>Nhạy cảm với điều kiện ban đầu</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fa-solid fa-check-circle text-success"></i>
+                                <span>Hiệu quả cao với dữ liệu âm thanh</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="landing-hero">
+    <div class="hero-content">
+        <h1 class="hero-title">Nghe nhạc <span class="text-primary">an toàn</span> với Sectify</h1>
+        <p class="hero-subtitle">Ứng dụng phát nhạc kết hợp với công nghệ mã hóa tiên tiến để bảo vệ bộ sưu tập âm nhạc của bạn</p>
+        <div class="hero-buttons">
+            <a href="/auth/signup" class="btn btn-primary btn-lg">Đăng ký miễn phí</a>
+            <a href="/auth/login" class="btn btn-outline-light btn-lg ms-3">Đăng nhập</a>
+        </div>
+    </div>
+    <div class="hero-image">
+        <img src="/static/img/hero-image.png" alt="Sectify Music Player" class="img-fluid">
+    </div>
+</div>
+
+<div class="landing-features">
+    <div class="section-header text-center">
+        <h2 class="section-title">Tính năng nổi bật</h2>
+        <p class="section-subtitle">Kết hợp trải nghiệm nghe nhạc tuyệt vời với bảo mật hàng đầu</p>
+    </div>
+    
+    <div class="row mt-5">
+        <div class="col-md-4 mb-4">
+            <div class="feature-card text-center">
+                <div class="feature-icon">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <h3 class="feature-title">Mã hóa tiên tiến</h3>
+                <p class="feature-text">Bảo vệ âm nhạc của bạn với các thuật toán mã hóa AES-GCM và Chaotic Stream Cipher tiên tiến.</p>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="feature-card text-center">
+                <div class="feature-icon">
+                    <i class="fa-solid fa-music"></i>
+                </div>
+                <h3 class="feature-title">Trình phát chất lượng cao</h3>
+                <p class="feature-text">Thưởng thức âm nhạc với trình phát được tối ưu hóa và giao diện người dùng hiện đại.</p>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="feature-card text-center">
+                <div class="feature-icon">
+                    <i class="fa-solid fa-cloud"></i>
+                </div>
+                <h3 class="feature-title">Truy cập mọi nơi</h3>
+                <p class="feature-text">Nghe và quản lý bộ sưu tập âm nhạc của bạn từ bất kỳ thiết bị nào có kết nối internet.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="landing-cta">
+    <div class="cta-content text-center">
+        <h2 class="cta-title">Bắt đầu ngay hôm nay</h2>
+        <p class="cta-text">Đăng ký miễn phí và bắt đầu bảo vệ bộ sưu tập âm nhạc của bạn</p>
+        <a href="/auth/signup" class="btn btn-primary btn-lg mt-3">Tạo tài khoản</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block additional_js %}
+{% if session.get('logged_in') %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load library stats
+    fetch('/api/audio/stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('total-songs').textContent = data.stats.total + ' bài hát';
+                document.getElementById('encrypted-songs').textContent = data.stats.encrypted + ' bài hát';
+                document.getElementById('decrypted-songs').textContent = data.stats.decrypted + ' bài hát';
+            }
+        })
+        .catch(error => console.error('Error fetching stats:', error));
+    
+    // Load recent played
+    fetch('/api/audio/recent')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.tracks.length > 0) {
+                const recentContainer = document.getElementById('recent-played');
+                recentContainer.innerHTML = '';
+                
+                data.tracks.forEach(track => {
+                    const cardHtml = `
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                            <div class="card track-card">
+                                <div class="card-img-top track-card-img">
+                                    <div class="track-artwork">
+                                        <i class="fa-solid fa-music"></i>
+                                    </div>
+                                    <button class="play-overlay-btn" data-id="${track.id}">
+                                        <i class="fa-solid fa-play"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <h5 class="card-title text-truncate">${track.name}</h5>
+                                    <p class="card-text">
+                                        <span class="badge ${track.status === 'original' ? 'bg-success' : track.status === 'encrypted' ? 'bg-danger' : 'bg-info'}">
+                                            ${track.status === 'original' ? 'Gốc' : track.status === 'encrypted' ? 'Đã mã hóa' : 'Đã giải mã'}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    recentContainer.innerHTML += cardHtml;
+                });
+                
+                // Add play functionality
+                document.querySelectorAll('.play-overlay-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const trackId = this.getAttribute('data-id');
+                        // Redirect to library with this track playing
+                        window.location.href = `/audio/library?play=${trackId}`;
+                    });
+                });
+            } else {
+                document.getElementById('recent-played').innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <i class="fa-solid fa-info-circle me-2"></i>
+                            Bạn chưa phát bài hát nào gần đây. Hãy đi đến <a href="/audio/library">thư viện</a> để nghe nhạc.
+                        </div>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching recent tracks:', error);
+            document.getElementById('recent-played').innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-danger">
+                        <i class="fa-solid fa-exclamation-circle me-2"></i>
+                        Không thể tải dữ liệu bài hát gần đây. Vui lòng thử lại sau.
+                    </div>
+                </div>
+            `;
+        });
+});
+</script>
+{% endif %}
+{% endblock %} 

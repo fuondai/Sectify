@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from functools import wraps
-from flask import session, redirect, request, jsonify, current_app as app # Sử dụng current_app
+from flask import session, redirect, request, jsonify, current_app as app, flash, url_for # Sử dụng current_app, flash, url_for
 import jwt
 
 # --- Decorators Xác thực --- 
@@ -30,7 +30,8 @@ def token_required(func):
             payload = jwt.decode(token, secret_key, algorithms=["HS256"])
             # Lưu user_id từ payload vào session để sử dụng sau này
             session["user_id"] = payload.get("id")
-            print(f"Token hợp lệ cho user_id: {session["user_id"]}")
+            user_id = session["user_id"]
+            print(f"Token hợp lệ cho user_id: {user_id}")
 
         except jwt.ExpiredSignatureError: # Token hết hạn
             print("Yêu cầu token: Token đã hết hạn.")
@@ -57,20 +58,46 @@ def token_required(func):
         return func(*args, **kwargs)
     return decorated
 
-def login_required(func):
-    """Decorator kiểm tra người dùng đã đăng nhập chưa (dựa vào user_id trong session)."""
-    @wraps(func)
-    def decorated(*args, **kwargs):
-        # Kiểm tra sự tồn tại của user_id trong session (được đặt bởi token_required)
-        if "user_id" in session:
-            # Người dùng đã đăng nhập và có token hợp lệ
-            return func(*args, **kwargs)
-        else:
-            # Người dùng chưa đăng nhập hoặc session không hợp lệ
-            print("Yêu cầu đăng nhập: Không tìm thấy user_id trong session.")
-            session.clear() # Xóa session không hợp lệ
-            if request.endpoint and ("api" in request.endpoint):
-                 return jsonify({"error": "Yêu cầu đăng nhập"}), 401
-            return redirect("/auth/login") # Chuyển hướng đến trang đăng nhập
-    return decorated
+def login_required(f):
+    """Decorator kiểm tra xem người dùng đã đăng nhập chưa.
+    
+    Nếu chưa đăng nhập, chuyển hướng về trang đăng nhập.
+    
+    Args:
+        f: Hàm cần bảo vệ
+        
+    Returns:
+        Hàm đã được bảo vệ
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get("logged_in"):
+            flash("Vui lòng đăng nhập để tiếp tục.", "warning")
+            return redirect(url_for("auth.login"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    """Decorator kiểm tra xem người dùng có quyền admin không.
+    
+    Nếu chưa đăng nhập hoặc không phải admin, chuyển hướng về trang chủ.
+    
+    Args:
+        f: Hàm cần bảo vệ
+        
+    Returns:
+        Hàm đã được bảo vệ
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get("logged_in"):
+            flash("Vui lòng đăng nhập để tiếp tục.", "warning")
+            return redirect(url_for("auth.login"))
+        
+        if session.get("role") != "admin":
+            flash("Bạn không có quyền truy cập trang này.", "danger")
+            return redirect(url_for("index"))
+            
+        return f(*args, **kwargs)
+    return decorated_function
 
