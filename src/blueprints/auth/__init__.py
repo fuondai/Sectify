@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+import sys
+import io
+
+# Cấu hình lại stdout để hỗ trợ UTF-8
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
 from flask import Blueprint
 
 # Tạo blueprint instance

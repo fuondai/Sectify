@@ -232,7 +232,7 @@ function renderPlaylistDetail() {
  * Tải danh sách bài hát có sẵn để thêm vào playlist
  */
 function loadAvailableTracks() {
-    fetch('/api/audio/list')
+    fetch('/audio/files')
         .then(response => response.json())
         .then(data => {
             if (data.success) {

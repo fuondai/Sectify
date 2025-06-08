@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+import sys
+import io
+
+# Cấu hình lại stdout để hỗ trợ UTF-8
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
 from flask import request, session, redirect, render_template, jsonify, current_app
 from . import auth # Import blueprint instance từ __init__.py cùng cấp
 from .models import User # Import lớp User từ models.py cùng cấp
@@ -53,20 +60,17 @@ def verify_2fa():
             return jsonify({"error": "Thiếu mã OTP"}), 400
 
         user = User()
-        result, status_code = user.verify_2fa(otp)
-        print(f"Verify result: {result}, status: {status_code}")
+        result = user.verify_2fa(otp)
+        print(f"Verify result: {result}")
 
         if "error" in result:
             return jsonify(result), 400
-        elif "success" in result and result["success"] == True:
-            return jsonify({"success": True, "redirect": "http://localhost:5000/"}), 200
-        else:
-            # Nếu bạn trả về user info thay vì có "success": True trong dict
-            return jsonify({
-                "success": True,
-                "redirect": "http://localhost:5000/",
-                "user": result  # gửi thêm user info nếu cần
-            }), 200
+            
+        # Nếu xác thực thành công, trả về thông báo thành công
+        return jsonify({
+            "success": True,
+            "redirect": "/"
+        }), 200
 
     except Exception as e:
         print(f"Lỗi khi xác thực OTP: {e}", flush=True)

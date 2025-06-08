@@ -36,14 +36,24 @@ class AudioLibrary {
             this.filterType.addEventListener('change', () => this.filterAudioList());
         }
         
-        // Sự kiện mã hóa
-        if (this.encryptButton) {
-            this.encryptButton.addEventListener('click', () => this.encryptAudio());
+        // Sự kiện phát tất cả
+        const playAllBtn = document.getElementById('play-all');
+        if (playAllBtn) {
+            playAllBtn.addEventListener('click', () => {
+                if (this.audioList && this.audioList.length > 0) {
+                    this.playAudio(this.audioList[0].id);
+                }
+            });
         }
         
-        // Sự kiện giải mã
+        // Sự kiện mã hóa (dùng onclick để tránh bind nhiều lần)
+        if (this.encryptButton) {
+            this.encryptButton.onclick = () => this.encryptAudio();
+        }
+        
+        // Sự kiện giải mã (dùng onclick để tránh bind nhiều lần)
         if (this.decryptButton) {
-            this.decryptButton.addEventListener('click', () => this.decryptAudio());
+            this.decryptButton.onclick = () => this.decryptAudio();
         }
         
         // Sự kiện tải xuống
@@ -72,7 +82,7 @@ class AudioLibrary {
     
     renderAudioList(files) {
         if (!this.audioListElement) return;
-        
+        // Thêm nút xóa cho mỗi file
         if (files.length === 0) {
             this.audioListElement.innerHTML = `
                 <tr>
@@ -83,12 +93,10 @@ class AudioLibrary {
             `;
             return;
         }
-        
         let html = '';
         files.forEach((file, index) => {
             const statusClass = file.status === 'encrypted' ? 'danger' : (file.status === 'decrypted' ? 'info' : 'success');
             const statusText = file.status === 'encrypted' ? 'Đã mã hóa' : (file.status === 'decrypted' ? 'Đã giải mã' : 'Gốc');
-            
             html += `
                 <tr class="audio-item" data-file-id="${file.id}">
                     <td>${index + 1}</td>
@@ -96,17 +104,20 @@ class AudioLibrary {
                     <td><span class="badge bg-${statusClass}">${statusText}</span></td>
                     <td>${this.formatDate(file.upload_date)}</td>
                     <td>
-                        <button class="btn btn-sm play-button" data-file-id="${file.id}">
+                        <button class="btn btn-sm play-button me-1" data-file-id="${file.id}">
                             <i class="fa-solid fa-play"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-primary select-button" data-file-id="${file.id}">
+                        <button class="btn btn-sm btn-outline-danger delete-button" data-file-id="${file.id}">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary select-button ms-1" data-file-id="${file.id}">
                             <i class="fa-solid fa-check"></i>
                         </button>
                     </td>
                 </tr>
             `;
         });
-        
+
         this.audioListElement.innerHTML = html;
         
         // Thêm sự kiện cho các nút
@@ -135,6 +146,20 @@ class AudioLibrary {
                 this.selectFile(fileId);
             });
         });
+        
+        // Đăng ký sự kiện xóa
+        document.querySelectorAll('.delete-button').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-file-id');
+                fetch(`/audio/delete/${id}`, { method: 'DELETE' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) this.loadAudioFiles();
+                        else this.showError(data.error);
+                    });
+            });
+        });
     }
     
     filterAudioList() {
@@ -153,9 +178,9 @@ class AudioLibrary {
     playAudio(fileId) {
         const file = this.audioList.find(f => f.id === fileId);
         if (!file) return;
-        
-        // Gửi yêu cầu API để lấy URL của tệp âm thanh
-        fetch(`/audio/download/${fileId}/${file.status}`)
+        // Nếu file đang ở trạng thái mã hóa, luôn phát bản đã giải mã (nếu có)
+        let playStatus = file.status === 'encrypted' ? 'decrypted' : file.status;
+        fetch(`/audio/download/${fileId}/${playStatus}`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Không thể tải tệp âm thanh');
@@ -164,19 +189,19 @@ class AudioLibrary {
             })
             .then(blob => {
                 const audioUrl = URL.createObjectURL(blob);
-                
-                // Tạo thông tin bài hát
                 const track = {
                     id: file.id,
                     name: file.name,
                     url: audioUrl,
                     status: file.status
                 };
-                
-                // Gọi trình phát nhạc để phát
                 if (window.musicPlayer) {
-                    window.musicPlayer.setPlaylist([track]);
-                    window.musicPlayer.play();
+                    // Thiết lập playlist đầy đủ để prev/next hoạt động
+                    const tracks = this.audioList.map(f => ({ id: f.id, name: f.name, status: f.status }));
+                    window.musicPlayer.setPlaylist(tracks);
+                    // Tìm chỉ số track hiện tại và phát
+                    const idx = tracks.findIndex(t => t.id === file.id);
+                    if (idx !== -1) window.musicPlayer.playTrack(idx);
                 }
             })
             .catch(error => {
@@ -198,13 +223,26 @@ class AudioLibrary {
         // Hiển thị tên tệp
         if (this.selectedFileName) this.selectedFileName.textContent = file.name;
         
-        // Hiển thị tùy chọn mã hóa hoặc giải mã dựa trên trạng thái của tệp
+        // Hiển thị đúng section theo trạng thái
         if (file.status === 'encrypted') {
-            // Tệp đã mã hóa => hiển thị tùy chọn giải mã
-            if (this.encryptSection) this.encryptSection.classList.add('d-none');
-            if (this.decryptSection) this.decryptSection.classList.remove('d-none');
+            this.encryptSection.classList.add('d-none');
+            this.decryptSection.classList.remove('d-none');
+            this.downloadButton.disabled = false;
+            this.decryptButton.disabled = false;
+            this.encryptButton.disabled = true;
+        } else if (file.status === 'decrypted') {
+            this.encryptSection.classList.add('d-none');
+            this.decryptSection.classList.add('d-none');
+            this.downloadButton.disabled = false;
+            this.decryptButton.disabled = true;
+            this.encryptButton.disabled = true;
         } else {
-            // Tệp chưa mã hóa => hiển thị tùy chọn mã hóa
+            // original
+            this.encryptSection.classList.remove('d-none');
+            this.decryptSection.classList.add('d-none');
+            this.downloadButton.disabled = false;
+            this.decryptButton.disabled = true;
+            this.encryptButton.disabled = false;
             if (this.encryptSection) this.encryptSection.classList.remove('d-none');
             if (this.decryptSection) this.decryptSection.classList.add('d-none');
         }
@@ -212,22 +250,32 @@ class AudioLibrary {
     
     encryptAudio() {
         if (!this.selectedFile) return;
-        
         const algorithm = document.querySelector('input[name="algorithm"]:checked').value;
-        
-        // Hiển thị thông báo đang xử lý
+        // Mẫu key AES 16 ký tự
+        let encryptionKey = prompt('Nhập khóa mã hóa (16/24/32 ký tự). Ví dụ: 1234567890abcdef', '1234567890abcdef');
+        this.encryptButton.blur();
+        if (!encryptionKey) {
+            this.showError('Bạn phải nhập khóa mã hóa!');
+            return;
+        }
         this.showMessage('Đang mã hóa tệp âm thanh...', 'info');
-        
-        // Gửi yêu cầu API để mã hóa tệp
         fetch(`/audio/encrypt/${this.selectedFile.id}/${algorithm}`, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `encryption_key=${encodeURIComponent(encryptionKey)}`
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 this.showMessage('Mã hóa tệp thành công!', 'success');
-                // Cập nhật danh sách tệp
                 this.loadAudioFiles();
+                setTimeout(() => {
+                    if (this.selectedFile && this.selectedFile.status === 'encrypted') {
+                        this.selectFile(this.selectedFile.id);
+                    }
+                }, 500);
             } else {
                 this.showError(data.error || 'Không thể mã hóa tệp âm thanh');
             }
@@ -240,28 +288,41 @@ class AudioLibrary {
     
     decryptAudio() {
         if (!this.selectedFile) return;
-        
-        // Hiển thị thông báo đang xử lý
+        // Nhắc nhập key giống với key đã dùng mã hóa
+        const decryptionKey = prompt('Nhập khóa giải mã (giống key mã hóa). Ví dụ: 1234567890abcdef', '1234567890abcdef');
+        this.decryptButton.blur();
+        if (!decryptionKey) {
+            this.showError('Bạn phải nhập khóa giải mã!');
+            return;
+        }
         this.showMessage('Đang giải mã tệp âm thanh...', 'info');
-        
-        // Gửi yêu cầu API để giải mã tệp
         fetch(`/audio/decrypt/${this.selectedFile.id}`, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `decryption_key=${encodeURIComponent(decryptionKey)}`
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                this.showMessage('Giải mã tệp thành công!', 'success');
-                // Cập nhật danh sách tệp
-                this.loadAudioFiles();
-            } else {
-                this.showError(data.error || 'Không thể giải mã tệp âm thanh');
-            }
-        })
-        .catch(error => {
-            console.error('Error decrypting audio:', error);
-            this.showError('Đã xảy ra lỗi khi giải mã tệp âm thanh');
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showMessage('Giải mã tệp thành công!', 'success');
+                    // Reload danh sách và chọn lại file rồi tự động tải
+                    this.loadAudioFiles();
+                    setTimeout(() => {
+                        if (this.selectedFile && this.selectedFile.status === 'decrypted') {
+                            this.selectFile(this.selectedFile.id);
+                            this.downloadAudio();
+                        }
+                    }, 500);
+                } else {
+                    this.showError(data.error || 'Không thể giải mã tệp âm thanh');
+                }
+            })
+            .catch(error => {
+                console.error('Error decrypting audio:', error);
+                this.showError('Đã xảy ra lỗi khi giải mã tệp âm thanh');
+            });
     }
     
     downloadAudio() {
@@ -287,16 +348,29 @@ class AudioLibrary {
     
     showError(message) {
         console.error(message);
-        // Hiển thị thông báo lỗi (có thể thêm vào giao diện)
+        if (typeof showAlert === 'function') {
+            showAlert(message, 'danger');
+        } else {
+            alert(message);
+        }
     }
     
     showMessage(message, type = 'info') {
         console.log(message);
-        // Hiển thị thông báo (có thể thêm vào giao diện)
+        if (typeof showAlert === 'function') {
+            showAlert(message, type);
+        } else {
+            alert(message);
+        }
     }
 }
 
-// Khởi tạo thư viện âm thanh khi DOM đã sẵn sàng
-document.addEventListener('DOMContentLoaded', function() {
-    const audioLibrary = new AudioLibrary();
-}); 
+// Khởi tạo audio library và music player khi DOM sẵn sàng
+document.addEventListener('DOMContentLoaded', () => {
+    const audioLib = new AudioLibrary();
+    audioLib.init();
+    // Nếu MusicPlayer đã được định nghĩa, khởi tạo duy nhất và gán global
+    if (typeof MusicPlayer === 'function' && !window.musicPlayer) {
+        window.musicPlayer = new MusicPlayer();
+    }
+});

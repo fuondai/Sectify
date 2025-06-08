@@ -1,9 +1,18 @@
 # -*- coding: utf-8 -*-
 import os
-from flask import Flask, render_template
+import sys
+from datetime import timedelta
+from flask import Flask, render_template, session
+from flask_session import Session
 from pymongo import MongoClient
 from config import config # Import cấu hình từ config.py
-import sys
+
+# Đường dẫn gốc của ứng dụng
+basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, basedir)
+
+# Khởi tạo biến toàn cục
+db = None
 
 # Biến toàn cục cho client MongoDB (sẽ được khởi tạo trong create_app)
 # Hoặc sử dụng extension như Flask-PyMongo để quản lý tốt hơn
@@ -93,6 +102,7 @@ def create_app(config_name="default", config_override=None):
         Flask: Instance của Flask application đã được cấu hình.
     """
     global db # Sử dụng biến db toàn cục
+    import os  # Đảm bảo import os ở đây
 
     app = Flask(__name__, instance_relative_config=False) # Tạo instance Flask
 
@@ -104,6 +114,27 @@ def create_app(config_name="default", config_override=None):
     # Ghi đè cấu hình nếu có (hữu ích cho testing)
     if config_override:
         app.config.update(config_override)
+        
+    # Cấu hình session đơn giản
+    app.config.update(
+        SECRET_KEY=os.urandom(24),  # Secret key cho session
+        SESSION_COOKIE_SECURE=False,  # Cho phép sử dụng HTTP (không phải HTTPS) trong môi trường dev
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax',  # Hoặc 'Strict' tùy theo yêu cầu bảo mật
+        PERMANENT_SESSION_LIFETIME=timedelta(minutes=30),  # Thời gian sống của session
+        SESSION_TYPE='filesystem',  # Sử dụng filesystem để lưu session
+        SESSION_FILE_DIR=os.path.join(basedir, 'flask_session'),  # Thư mục lưu session
+        SESSION_PERMANENT=True,  # Session có thời hạn
+        SESSION_USE_SIGNER=True,  # Ký cookie để đảm bảo an toàn
+        SESSION_COOKIE_NAME='sectify_session',  # Tên cookie session
+        SESSION_COOKIE_PATH='/'  # Path của cookie
+    )
+    
+    # Đảm bảo thư mục lưu session tồn tại
+    os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
+    
+    # Khởi tạo Flask-Session
+    Session(app)
         
     # Kiểm tra SECRET_KEY (rất quan trọng)
     if not app.config.get("SECRET_KEY"):
@@ -150,11 +181,41 @@ def create_app(config_name="default", config_override=None):
     app.register_blueprint(audio_blueprint, url_prefix="/audio")
     # Đăng ký các blueprint khác...
 
-    # --- Cấu hình khác (Logging, Extensions, etc.) --- 
-    # Ví dụ: Cấu hình logging
-    # if not app.debug and not app.testing:
-    #     # ... setup logging for production ...
-    #     pass
+    # --- Cấu hình Logging --- 
+    import logging
+    from logging.handlers import RotatingFileHandler
+    import os
+    
+    # Tạo thư mục logs nếu chưa tồn tại
+    log_dir = os.path.join(basedir, 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, 'app.log')
+    
+    # Cấu hình logging
+    handler = RotatingFileHandler(log_file, maxBytes=10240, backupCount=10, encoding='utf-8')
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+    handler.setLevel(logging.DEBUG)  # Ghi lại tất cả các mức log
+    
+    # Thêm handler mới
+    app.logger.addHandler(handler)
+    
+    # Đặt mức log cho app.logger
+    app.logger.setLevel(logging.DEBUG)
+    
+    # Thêm handler để hiển thị log ra console
+    console = logging.StreamHandler()
+    console.setLevel(logging.DEBUG)
+    console.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    app.logger.addHandler(console)
+    
+    # Log thông tin khởi động
+    app.logger.info('Khởi động ứng dụng...')
+    app.logger.info('Chế độ cấu hình: %s', config_name)
+    app.logger.info('Đường dẫn log file: %s', os.path.abspath(log_file))
+    
+    # Bật chế độ debug cho tất cả các logger
+    logging.basicConfig(level=logging.DEBUG)
 
     # --- Route cơ bản (tùy chọn) --- 
     @app.route("/ping")

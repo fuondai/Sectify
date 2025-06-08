@@ -569,3 +569,8 @@ a:hover {
     display: none;
   }
 }
+
+/* Tăng khoảng cách giữa landing-hero và landing-features */
+.landing-hero {
+  margin-bottom: 5rem;
+}

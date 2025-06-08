@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+import sys
+import io
+
+# Cấu hình lại stdout để hỗ trợ UTF-8
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
 from flask import jsonify, session, redirect, current_app, request # Import request để lấy dữ liệu form
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
@@ -206,9 +213,15 @@ class User:
                 db.users.update_one({"_id": user["_id"]}, {"$set": {"password": new_hash}})
 
             # Lưu tạm user_id vào session để chờ xác thực 2FA
-            session["temp_user_id_for_2fa"] = user["_id"]
+            session["temp_user_id_for_2fa"] = str(user["_id"])
+            print(f"[DEBUG] Đã lưu temp_user_id_for_2fa vào session: {session['temp_user_id_for_2fa']}")
+            
             # Gửi mã 2FA (hoặc bỏ qua nếu đang testing)
             mail_sent = self.send_2fa_code(user["email"], current_app.config.get("TESTING", False))
+            
+            # In ra toàn bộ session để debug
+            print(f"[DEBUG] Session sau khi lưu 2FA: {dict(session)}")
+            
             if mail_sent:
                 print(f"Đã gửi/bỏ qua mã 2FA cho {email}. Yêu cầu xác thực 2FA.")
                 # Trả về thông báo yêu cầu 2FA (tiếng Việt theo yêu cầu test)
@@ -235,7 +248,17 @@ class User:
         otp = "".join([str(random.randint(0, 9)) for _ in range(6)])
         session["2fa_otp"] = otp # Lưu OTP vào session
         # Lưu timestamp (UTC) để kiểm tra hết hạn
-        session["2fa_otp_timestamp"] = datetime.now(timezone.utc)
+        otp_timestamp = datetime.now(timezone.utc)
+        session["2fa_otp_timestamp"] = otp_timestamp
+        
+        # Debug: In ra thông tin session sau khi lưu OTP
+        print(f"[DEBUG] Đã lưu OTP vào session - 2fa_otp: {session['2fa_otp']}")
+        print(f"[DEBUG] Đã lưu timestamp vào session - 2fa_otp_timestamp: {session['2fa_otp_timestamp']}")
+        
+        # Ghi log thông tin OTP
+        current_app.logger.info(f"Mã OTP được tạo cho {email}: {otp}")
+        current_app.logger.info(f"Thời gian tạo OTP (UTC): {otp_timestamp.isoformat()}")
+        current_app.logger.info(f"OTP sẽ hết hạn vào (UTC): {(otp_timestamp + timedelta(minutes=10)).isoformat()}")
 
         # Bỏ qua gửi email thực tế khi đang chạy test, development, hoặc có config yêu cầu
         if testing or current_app.config.get("MAIL_SUPPRESS_SEND") or current_app.config.get("DEBUG", False):
@@ -284,56 +307,79 @@ class User:
         Kiểm tra OTP, thời gian hết hạn, và bắt đầu session nếu hợp lệ.
         """
         db = get_db() # Lấy đối tượng DB
+        
+        # Debug: In ra toàn bộ session hiện tại
+        print(f"[DEBUG] Session data before getting values: {dict(session)}")
+        print(f"[DEBUG] Session ID: {session.sid if hasattr(session, 'sid') else 'No session ID'}")
+        print(f"[DEBUG] Session permanent: {session.permanent}")
+        print(f"[DEBUG] Session modified: {session.modified}")
+        
         # Lấy thông tin cần thiết từ session
         temp_user_id = session.get("temp_user_id_for_2fa")
         stored_otp = session.get("2fa_otp")
-        otp_timestamp_aware = session.get("2fa_otp_timestamp") # Timestamp này đã là UTC
-        submitted_otp = otp # OTP người dùng nhập
-
-        # Kiểm tra xem các thông tin cần thiết có tồn tại không
-        if not temp_user_id or not stored_otp or not otp_timestamp_aware or not submitted_otp:
-            print("Xác thực 2FA thất bại: Thiếu dữ liệu tạm thời hoặc OTP trong session/request.")
-            return {
-                "error": "Thông tin xác thực không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại."
-            }
-
-        # Chuyển timestamp từ str thành datetime nếu cần
+        otp_timestamp_aware = session.get("2fa_otp_timestamp")
+        
+        # Debug: In ra các giá trị đã lấy từ session
+        print(f"[DEBUG] Retrieved from session - temp_user_id: {temp_user_id}")
+        print(f"[DEBUG] Retrieved from session - stored_otp: {stored_otp}")
+        print(f"[DEBUG] Retrieved from session - otp_timestamp_aware: {otp_timestamp_aware}")
+        print(f"[DEBUG] Submitted OTP: {otp}")
+        
+        # Kiểm tra xem session có chứa các giá trị cần thiết không
+        if not all([temp_user_id, stored_otp, otp_timestamp_aware]):
+            print("[ERROR] Missing required session data for 2FA verification")
+            print(f"[ERROR] temp_user_id: {'exists' if temp_user_id else 'missing'}")
+            print(f"[ERROR] stored_otp: {'exists' if stored_otp else 'missing'}")
+            print(f"[ERROR] otp_timestamp_aware: {'exists' if otp_timestamp_aware else 'missing'}")
+            return {"error": "Thông tin xác thực không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại."}
+        
+        # Chuyển đổi timestamp từ str thành datetime nếu cần
         if isinstance(otp_timestamp_aware, str):
             otp_timestamp_aware = datetime.strptime(
                 otp_timestamp_aware, "%Y-%m-%d %H:%M:%S.%f%z"
             )
 
-        # Kiểm tra thời gian hết hạn
-        # OTP chỉ có hiệu lực trong 10 phút (600 giây)
+        # Kiểm tra thời gian hết hạn (10 phút = 600 giây)
         now = datetime.now(timezone.utc)
         time_diff = now - otp_timestamp_aware
+        
         if time_diff.total_seconds() > 600:
             # Xóa thông tin tạm thời nếu hết hạn
             session.pop("temp_user_id_for_2fa", None)
             session.pop("2fa_otp", None)
             session.pop("2fa_otp_timestamp", None)
-            print(f"Xác thực 2FA thất bại: OTP đã hết hạn ({time_diff.total_seconds()} giây).")
-            return {
-                "error": "Mã OTP đã hết hạn. Vui lòng đăng nhập lại."
-            }
+            print(f"[ERROR] OTP expired: {time_diff.total_seconds()} seconds")
+            return {"error": "Mã OTP đã hết hạn. Vui lòng đăng nhập lại."}
 
+        # Chuyển đổi cả hai về chuỗi để so sánh
+        stored_otp_str = str(stored_otp).strip()
+        submitted_otp_str = str(otp).strip()
+        
+        print(f"[DEBUG] Comparing OTPs - stored: '{stored_otp_str}', submitted: '{submitted_otp_str}'")
+        
         # Kiểm tra OTP có trùng khớp không
-        if submitted_otp != stored_otp:
-            print(f"Xác thực 2FA thất bại: OTP không khớp (nhập: {submitted_otp}, lưu: {stored_otp}).")
-            return {
-                "error": "Mã OTP không chính xác."
-            }
+        if submitted_otp_str != stored_otp_str:
+            print(f"[ERROR] OTP mismatch: stored='{stored_otp_str}', submitted='{submitted_otp_str}'")
+            return {"error": "Mã OTP không chính xác."}
 
         # OTP hợp lệ, xác thực thành công!
-        # Tạo phiên đăng nhập cho người dùng
         try:
+            # Lấy thông tin người dùng từ database
             user = db.users.find_one({"_id": temp_user_id})
             if not user:
                 return {"error": "Không tìm thấy thông tin người dùng."}
 
-            # Bắt đầu session thông qua phương thức đã có
+            # Xóa thông tin tạm thời sau khi xác thực thành công
+            session.pop("temp_user_id_for_2fa", None)
+            session.pop("2fa_otp", None)
+            session.pop("2fa_otp_timestamp", None)
+            
+            # Lưu lại session
+            session.modified = True
+            
+            # Bắt đầu session mới cho người dùng
             return self.start_session(user)
 
         except Exception as e:
-            print(f"Lỗi khi xác thực 2FA: {e}")
-            return {"error": "Lỗi xác thực: " + str(e)}
+            print(f"[ERROR] Error in 2FA verification: {str(e)}")
+            return {"error": f"Lỗi xác thực: {str(e)}"}

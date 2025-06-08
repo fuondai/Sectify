@@ -3,6 +3,7 @@
 {% block title %}Trang chủ - Sectify{% endblock %}
 
 {% block content %}
+<div class="container py-5">
 {% if session.get('logged_in') %}
 <div class="home-greeting">
     <div class="greeting-text">
@@ -162,18 +163,89 @@
     </div>
 </div>
 
+<div class="section">
+    <div class="section-header">
+        <h3 class="section-title">Công nghệ mã hóa</h3>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card encryption-info-card">
+                <div class="card-body">
+                    <div class="encryption-info-header">
+                        <div class="encryption-icon">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div class="encryption-title">
+                            <h4>AES-GCM</h4>
+                            <p class="text-muted">Tiêu chuẩn mã hóa công nghiệp</p>
+                        </div>
+                    </div>
+                    <div class="encryption-details mt-3">
+                        <p>AES-GCM (Advanced Encryption Standard - Galois/Counter Mode) là một thuật toán mã hóa chuẩn được sử dụng rộng rãi, kết hợp sự bảo mật của AES với tính hiệu quả và xác thực của GCM.</p>
+                        <div class="encryption-features">
+                            <div class="feature-item">
+                                <i class="fa-solid fa-check-circle text-success"></i>
+                                <span>Mã hóa 256-bit</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fa-solid fa-check-circle text-success"></i>
+                                <span>Xác thực toàn vẹn dữ liệu</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fa-solid fa-check-circle text-success"></i>
+                                <span>Chống tấn công thay đổi dữ liệu</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card encryption-info-card">
+                <div class="card-body">
+                    <div class="encryption-info-header">
+                        <div class="encryption-icon">
+                            <i class="fa-solid fa-random"></i>
+                        </div>
+                        <div class="encryption-title">
+                            <h4>Chaotic Stream Cipher</h4>
+                            <p class="text-muted">Mã hóa dựa trên lý thuyết hỗn loạn</p>
+                        </div>
+                    </div>
+                    <div class="encryption-details mt-3">
+                        <p>Chaotic Stream Cipher sử dụng sơ đồ hỗn loạn Logistic Map để tạo ra các dãy số giả ngẫu nhiên không thể đoán trước, mang lại tính bảo mật cao cho dữ liệu âm thanh.</p>
+                        <div class="encryption-features">
+                            <div class="feature-item">
+                                <i class="fa-solid fa-check-circle text-success"></i>
+                                <span>Tính chất hỗn loạn không thể đoán trước</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fa-solid fa-check-circle text-success"></i>
+                                <span>Nhạy cảm với điều kiện ban đầu</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fa-solid fa-check-circle text-success"></i>
+                                <span>Hiệu quả cao với dữ liệu âm thanh</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% else %}
 <div class="landing-hero">
-    <div class="hero-content">
+    <div class="hero-content text-center">
         <h1 class="hero-title">Nghe nhạc <span class="text-primary">an toàn</span> với Sectify</h1>
         <p class="hero-subtitle">Ứng dụng phát nhạc kết hợp với công nghệ mã hóa tiên tiến để bảo vệ bộ sưu tập âm nhạc của bạn</p>
-        <div class="hero-buttons">
+        <div class="hero-buttons d-flex justify-content-center gap-3 mt-4">
             <a href="/auth/signup" class="btn btn-primary btn-lg">Đăng ký miễn phí</a>
             <a href="/auth/login" class="btn btn-outline-light btn-lg ms-3">Đăng nhập</a>
         </div>
-    </div>
-    <div class="hero-image">
-        <img src="/static/img/hero-image.png" alt="Sectify Music Player" class="img-fluid">
     </div>
 </div>
 
@@ -224,6 +296,7 @@
     </div>
 </div>
 {% endif %}
+</div>
 {% endblock %}
 
 {% block additional_js %}
@@ -231,7 +304,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Load library stats
-    fetch('/api/audio/stats')
+    fetch('/audio/stats')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -243,7 +316,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => console.error('Error fetching stats:', error));
     
     // Load recent played
-    fetch('/api/audio/recent')
+    fetch('/audio/recent')
         .then(response => response.json())
         .then(data => {
             if (data.success && data.tracks.length > 0) {
@@ -309,4 +382,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
-{% endblock %} 
+{% endblock %}
