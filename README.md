@@ -6,6 +6,10 @@ Dự án này là một ứng dụng web Flask được thiết kế để trìn
 
 Mục tiêu chính của dự án là xây dựng một hệ thống hoàn chỉnh, an toàn, dễ bảo trì và có tài liệu tốt, tuân thủ các thực hành tốt nhất trong phát triển phần mềm và mật mã học ứng dụng.
 
+## Kiến trúc
+
+![Architecture Diagram](assets/CryptographyArchitecture.png)
+
 ## Tính năng chính
 
 *   **Xác thực người dùng:** Đăng ký, đăng nhập an toàn với mật khẩu được băm bằng Argon2.
