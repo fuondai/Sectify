@@ -2,7 +2,6 @@
 from flask import request, session, redirect, render_template, jsonify, current_app
 from . import auth # Import blueprint instance từ __init__.py cùng cấp
 from .models import User # Import lớp User từ models.py cùng cấp
-
 # Sử dụng decorator của blueprint (@auth.route) thay vì @app.route
 # để đăng ký các route này với blueprint 'auth'
 
@@ -59,8 +58,8 @@ def verify_2fa():
             return jsonify({"error": "Thiếu mã OTP"}), 400
         
         # Gọi hàm xác thực OTP từ model
-        auth_model = AuthModel(get_db())
-        result = auth_model.verify_2fa(otp)
+        user = User()
+        result = user.verify_2fa(otp)
         
         # Kiểm tra kết quả
         if "error" in result:

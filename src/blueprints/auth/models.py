@@ -11,6 +11,7 @@ import random
 from datetime import datetime, timedelta, timezone # Import timezone để làm việc với thời gian UTC
 import jwt
 import os
+from bson import ObjectId
 
 # --- Khởi tạo các đối tượng cần thiết --- 
 ph = PasswordHasher() # Đối tượng để băm và xác thực mật khẩu bằng Argon2
@@ -325,43 +326,14 @@ class User:
 
         # OTP hợp lệ, xác thực thành công!
         # Tạo phiên đăng nhập cho người dùng
-        cursor = db.cursor()
         try:
-            # Lấy thông tin người dùng
-            cursor.execute(
-                "SELECT id, name, email, role FROM users WHERE id = ?",
-                (temp_user_id,)
-            )
-            user = cursor.fetchone()
-            
+            user = db.users.find_one({"_id": temp_user_id})
             if not user:
-                # Không tìm thấy người dùng (hiếm khi xảy ra)
-                return {
-                    "error": "Không tìm thấy thông tin người dùng."
-                }
-                
-            # Đặt thông tin người dùng vào session
-            session["user_id"] = user["id"]
-            session["name"] = user["name"]
-            session["email"] = user["email"]
-            session["role"] = user["role"]
-            session["logged_in"] = True
-            
-            # Xóa thông tin tạm thời
-            session.pop("temp_user_id_for_2fa", None)
-            session.pop("2fa_otp", None)
-            session.pop("2fa_otp_timestamp", None)
-            
-            # Thêm trường success vào kết quả
-            return {
-                "success": True,
-                "message": "Xác thực thành công. Đang chuyển hướng..."
-            }
+                return {"error": "Không tìm thấy thông tin người dùng."}
+
+            # Bắt đầu session thông qua phương thức đã có
+            return self.start_session(user)
+
         except Exception as e:
             print(f"Lỗi khi xác thực 2FA: {e}")
-            return {
-                "error": "Lỗi xác thực: " + str(e)
-            }
-        finally:
-            cursor.close()
-
+            return {"error": "Lỗi xác thực: " + str(e)}
