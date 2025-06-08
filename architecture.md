@@ -6,6 +6,8 @@
 
 ## Sơ đồ Kiến trúc Tổng thể
 
+![Architecture Diagram](assets/CryptographyArchitecture.png)
+
 ```mermaid
 graph TD
     Client[Client (Web Browser / API Client)] --> Nginx[Web Server / Reverse Proxy (Optional)];
