@@ -1,15 +1,53 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="card-wrapper">
-        <div class="card">
-            <h1>Two-Factor Authentication</h1>
-            <form name="2fa_form" action="/user/verify_2fa" method="POST">
-                <label for="otp">Enter the OTP from your authenticator app:</label>
-                <input type="text" name="otp" id="otp" required>
-                <button type="submit">Verify</button>
-                <p class="error error--hidden"></p>
-            </form>
-        </div>
+<div class="card-wrapper">
+    <div class="card">
+        <h1>Two-Factor Authentication</h1>
+        <form id="otpForm">
+            <label for="otp">Enter the OTP from your authenticator app:</label>
+            <input type="text" name="otp" id="otp" required>
+            <button type="submit">Verify</button>
+            <p class="error error--hidden"></p>
+        </form>
     </div>
+    <div id="login-alert" class="alert alert-danger d-none"></div>
+</div>
+{% endblock %}
+
+{% block additional_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    console.log("JS loaded!");
+    document.getElementById("otpForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+
+        const otp = document.getElementById("otp").value;
+
+        fetch("/auth/verify-2fa", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: new URLSearchParams({ otp: otp })
+        })
+        .then(res => res.json())
+        .then(data => {
+            console.log("Response từ server:", data);
+
+            if (data.success && data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                alert(data.error || "Xác thực thất bại.");
+            }
+        })
+        .catch(err => {
+            console.error("Lỗi xác thực OTP:", err);
+            const errorEl = document.querySelector(".error");
+            errorEl.textContent = "Lỗi kết nối.";
+            errorEl.classList.remove("error--hidden");
+        });
+    });
+});
+</script>
 {% endblock %}

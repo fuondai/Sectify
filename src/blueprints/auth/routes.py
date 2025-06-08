@@ -46,30 +46,30 @@ def signout():
 
 @auth.route("/verify-2fa", methods=["POST"])
 def verify_2fa():
-    """Xác thực mã OTP.
-    
-    Returns:
-        - Thông báo lỗi nếu OTP không hợp lệ hoặc hết hạn
-        - Thông tin người dùng nếu xác thực thành công
-    """
     try:
         otp = request.form.get("otp")
+        print(f"Received OTP: {otp}")
         if not otp:
             return jsonify({"error": "Thiếu mã OTP"}), 400
-        
-        # Gọi hàm xác thực OTP từ model
+
         user = User()
-        result = user.verify_2fa(otp)
-        
-        # Kiểm tra kết quả
+        result, status_code = user.verify_2fa(otp)
+        print(f"Verify result: {result}, status: {status_code}")
+
         if "error" in result:
             return jsonify(result), 400
         elif "success" in result and result["success"] == True:
-            return jsonify(result), 200
+            return jsonify({"success": True, "redirect": "http://localhost:5000/"}), 200
         else:
-            # Trường hợp không xác định
-            return jsonify({"error": "Lỗi không xác định khi xác thực OTP"}), 500
+            # Nếu bạn trả về user info thay vì có "success": True trong dict
+            return jsonify({
+                "success": True,
+                "redirect": "http://localhost:5000/",
+                "user": result  # gửi thêm user info nếu cần
+            }), 200
+
     except Exception as e:
-        print(f"Lỗi khi xác thực OTP: {e}")
+        print(f"Lỗi khi xác thực OTP: {e}", flush=True)
         return jsonify({"error": f"Lỗi xác thực: {str(e)}"}), 500
+
 

@@ -284,17 +284,23 @@ document.addEventListener('DOMContentLoaded', function() {
  * @param {string} type - Loại thông báo (danger, success, warning, info)
  */
 function showAlert(alertElement, message, type = 'danger') {
+    if (!alertElement) {
+        console.warn('Không tìm thấy phần tử để hiển thị thông báo:', message);
+        alert(message); // fallback hiển thị cảnh báo cơ bản
+        return;
+    }
+
     alertElement.textContent = message;
     alertElement.className = `alert alert-${type}`;
     alertElement.classList.remove('d-none');
-    
-    // Tự động ẩn thông báo sau 5 giây nếu là thông báo thành công
+
     if (type === 'success') {
         setTimeout(() => {
             alertElement.classList.add('d-none');
         }, 5000);
     }
 }
+
 
 /**
  * Kiểm tra độ mạnh của mật khẩu
